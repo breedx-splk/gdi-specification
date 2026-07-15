@@ -328,3 +328,220 @@ subsequent effective configuration reports (as requested by the server)
 MUST reflect these changes.
 
 Agents MUST NOT perform any local persistence of remote configuration values.
+
+## Remote Control
+
+**Status**: [Experimental](../README.md#versioning-and-status-of-the-specification)
+
+Some use cases require an OpAMP server to send an instruction, or command, to a
+running agent. The standard `ServerToAgentCommand` message currently supports
+only agent restarts. Agents MAY support additional commands using the
+experimental transports described in this section. This feature is opt-in and
+MUST NOT be enabled by default.
+
+When using environment-variable based agent configuration, the following
+configuration option MAY be provided:
+
+| Name                                       | Default | Description                                                   |
+|--------------------------------------------|---------|---------------------------------------------------------------|
+| `SPLUNK_OPAMP_EXPERIMENTAL_REMOTE_CONTROL` | false   | Set to `true` to accept experimental remote-control commands. |
+
+The equivalent Java system property is
+`splunk.opamp.experimental_remote_control`.
+
+When using declarative configuration, `experimental_control` enables the
+feature:
+
+```yaml
+distribution:
+  splunk:
+    opamp/development:
+      endpoint: http://some.opamp-host.com:3420/v1/opamp
+      experimental_control: true
+```
+
+OpAMP must be enabled in the agent for this feature to work.
+
+This feature is independent of the call graph profiler (also known as the
+snapshot profiler) and does not require `SPLUNK_SNAPSHOT_PROFILER_ENABLED` to
+be set.
+
+### Command Transport
+
+Commands MAY be carried in an OpAMP `CustomMessage` or, for OpAMP clients that
+do not yet expose custom-message support, in an `AgentRemoteConfig` message.
+Both transports carry the same command body: UTF-8 encoded,
+newline-separated text. An agent MUST parse and execute the body identically
+regardless of which transport carries it.
+
+#### Custom Message Transport
+
+Servers SHOULD use an OpAMP
+[`CustomMessage`](https://opentelemetry.io/docs/specs/opamp/#custom-messages)
+when the client supports it. The server MUST set the fields as follows:
+
+| Field        | Value                                      |
+|--------------|--------------------------------------------|
+| `capability` | `com.splunk.opamp.experimental_command/v1` |
+| `type`       | `command`                                  |
+| `data`       | UTF-8 encoded command body.                |
+
+Agents and servers that support this transport SHOULD advertise
+`com.splunk.opamp.experimental_command/v1` in
+`CustomCapabilities.capabilities`. A server SHOULD send commands using
+`CustomMessage` when the agent advertises this capability.
+
+For example, the `data` field for a command that requests three thread dumps is
+the byte representation of the following text:
+
+```text
+thread.dump
+01JZQ3E4YJYX8N2YQF5Z7K4M6P
+3
+1000
+```
+
+#### Remote Configuration Compatibility Transport
+
+**Status**: [Deprecated](../README.md#versioning-and-status-of-the-specification)
+
+This transport remains supported as a compatibility
+mechanism for OpAMP clients, including the current Java client, that do not yet
+expose custom-message support. A server SHOULD NOT use this transport when the
+agent advertises the `com.splunk.opamp.experimental_command/v1` custom
+capability.
+
+The server MAY place a command in the
+[`AgentRemoteConfig.AgentConfigMap`](https://opentelemetry.io/docs/specs/opamp/#agentremoteconfig-message)
+using the reserved config filename `COMMAND_HACKS`. The value MUST be an
+`AgentConfigFile` whose body is UTF-8 encoded. Its `content_type` SHOULD be
+`text/plain; charset=utf-8`.
+
+When `COMMAND_HACKS` is present, the agent MUST interpret its body as a command
+rather than ordinary remote configuration. A server MAY send a command and
+remote configuration together in the same
+`AgentConfigMap`.
+
+#### Command Body
+
+Command bodies consist of UTF-8 encoded, newline-separated, positional fields.
+The first line is the command name. The meaning and type of subsequent lines
+are defined by the command. Leading and trailing whitespace on each line is
+ignored.
+
+### `thread.dump` Command
+
+The `thread.dump` command, currently supported by the Java agent, requests one
+or more thread dumps of the agent process. Its body has the following format:
+
+```text
+thread.dump
+<job_id>
+<count>
+<interval_millis>
+```
+
+| Line | Name            | Type                           | Default | Description                                |
+|------|-----------------|--------------------------------|---------|--------------------------------------------|
+| 1    | command         | string                         | none    | MUST be the literal `thread.dump`.         |
+| 2    | job_id          | string                         | none    | Opaque identifier for the dump request.    |
+| 3    | count           | positive 32-bit signed integer | 1       | Number of thread dumps to collect.          |
+| 4    | interval_millis | positive 32-bit signed integer | 1000    | Delay in milliseconds between thread dumps. |
+
+The `job_id` line is REQUIRED and MUST NOT be empty. The `count` and
+`interval_millis` lines MAY be omitted. To specify `interval_millis`, `count`
+MUST also be present. `interval_millis` has no effect when `count` is `1`.
+
+For example, the following command requests three thread dumps approximately
+one second apart:
+
+```text
+thread.dump
+01JZQ3E4YJYX8N2YQF5Z7K4M6P
+3
+1000
+```
+
+The first thread dump is collected immediately. When `count` is greater than
+one, the agent waits `interval_millis` after completing one thread dump before
+starting the next. The agent MUST use the command's `job_id` for every thread
+dump in the sequence. An agent SHOULD support only one active `thread.dump`
+command at a time; if a sequence is already active, it SHOULD reject a
+subsequent command without collecting another thread dump.
+
+Each thread dump MUST include the stack trace, locked monitors, and locked
+ownable synchronizers for every thread returned by the runtime. Each thread
+dump is exported as one profiling `LogRecord` containing a pprof `Profile`, as
+defined in [PPROF Profile.proto Data Format](semantic_conventions.md#pprof-profileproto-data-format).
+The profile contains one `Sample` per thread.
+
+#### Profiling `LogRecord`
+
+The `LogRecord` uses the standard profiling envelope with the following
+attributes:
+
+| Attribute                          | Value                                            |
+|------------------------------------|--------------------------------------------------|
+| `com.splunk.sourcetype`            | `otel.profiling`                                 |
+| `profiling.data.type`              | `cpu`                                            |
+| `profiling.data.format`            | `pprof-gzip-base64`                              |
+| `profiling.instrumentation.source` | `threaddump`                                     |
+| `profiling.data.total.frame.count` | Total frame count across all thread samples.     |
+
+The `LogRecord` body MUST contain the gzip-compressed, base64-encoded pprof
+protobuf. A command that requests multiple thread dumps produces one
+`LogRecord` for each thread dump.
+
+#### Thread Sample Translation
+
+Stack frames are added to the pprof sample from the top of the thread stack to
+the bottom. A frame's pprof function name is the fully-qualified Java class name
+and method name joined with a period. The source filename is `unknown` when it
+is unavailable, and negative or unavailable line numbers are represented as
+`0`.
+
+Every thread sample has the following labels:
+
+| Label               | pprof type | Value |
+|---------------------|------------|-------|
+| `thread.id`         | `int64`    | Runtime thread identifier. |
+| `thread.name`       | `string`   | Runtime thread name. |
+| `thread.state`      | `string`   | Java `Thread.State` name. |
+| `source.event.name` | `string`   | `jdk.ThreadDump`. |
+| `source.event.time` | `int64`    | Unix time in milliseconds at which translation of the thread dump began. |
+| `profiling.job.id`  | `string`   | The `job_id` supplied in the command body. |
+
+The same `source.event.time` value MUST be used for every thread in a single
+thread dump. The same `profiling.job.id` value MUST be used for every thread and
+every thread dump produced by one command.
+
+The following labels are added when the corresponding lock information is
+available:
+
+| Label                | pprof type | Cardinality  | Value |
+|----------------------|------------|--------------|-------|
+| `lock.waiting_on`    | `string`   | zero or one  | Object on which the thread is blocked, in `<class>@<identity_hash>` form. |
+| `lock.owner_thread`  | `string`   | zero or one  | Name of the thread that owns `lock.waiting_on`. |
+| `lock.held.<n>`      | `string`   | zero or more | One indexed label per held monitor or ownable synchronizer, in `<class>@<identity_hash>` form. |
+
+The `<n>` suffix in `lock.held.<n>` MUST be a contiguous, zero-based integer.
+Locked monitors MUST be listed first in the order returned by the runtime,
+followed by locked ownable synchronizers in the order returned by the runtime.
+
+#### Differences from Regular Profiling Data
+
+Although thread dumps use the profiling transport and are identified as `cpu`
+data, they are runtime thread dumps rather than statistical CPU-profile
+samples. In particular:
+
+* A thread dump includes every thread returned by the runtime. It does not
+  apply the continuous profiler's thread filtering.
+* Stack traces are not limited by the configured profiling stack depth, and
+  samples do not carry `thread.stack.truncated`.
+* Samples are not associated with a span and therefore do not include
+  `trace_id` or `span_id`.
+* Samples include waiting, owning, and held-lock information that regular
+  profiling samples do not include.
+* The profiling envelope reports `profiling.instrumentation.source` as
+  `threaddump`, allowing the backend to preserve and query individual thread
+  samples separately from regular profiling data.
