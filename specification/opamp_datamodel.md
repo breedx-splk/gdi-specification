@@ -441,10 +441,10 @@ thread.dump
 <interval_millis>
 ```
 
-| Line | Name            | Type                           | Default | Description                                |
-|------|-----------------|--------------------------------|---------|--------------------------------------------|
-| 1    | command         | string                         | none    | MUST be the literal `thread.dump`.         |
-| 2    | job_id          | string                         | none    | Opaque identifier for the dump request.    |
+| Line | Name            | Type                           | Default | Description                                 |
+|------|-----------------|--------------------------------|---------|---------------------------------------------|
+| 1    | command         | string                         | none    | MUST be the literal `thread.dump`.          |
+| 2    | job_id          | string                         | none    | Opaque identifier for the dump request.     |
 | 3    | count           | positive 32-bit signed integer | 1       | Number of thread dumps to collect.          |
 | 4    | interval_millis | positive 32-bit signed integer | 1000    | Delay in milliseconds between thread dumps. |
 
@@ -502,14 +502,14 @@ is unavailable, and negative or unavailable line numbers are represented as
 
 Every thread sample has the following labels:
 
-| Label               | pprof type | Value |
-|---------------------|------------|-------|
-| `thread.id`         | `int64`    | Runtime thread identifier. |
-| `thread.name`       | `string`   | Runtime thread name. |
-| `thread.state`      | `string`   | Java `Thread.State` name. |
-| `source.event.name` | `string`   | `jdk.ThreadDump`. |
+| Label               | pprof type | Value                                                                    |
+|---------------------|------------|--------------------------------------------------------------------------|
+| `thread.id`         | `int64`    | Runtime thread identifier.                                               |
+| `thread.name`       | `string`   | Runtime thread name.                                                     |
+| `thread.state`      | `string`   | Java `Thread.State` name.                                                |
+| `source.event.name` | `string`   | `jdk.ThreadDump`.                                                        |
 | `source.event.time` | `int64`    | Unix time in milliseconds at which translation of the thread dump began. |
-| `profiling.job.id`  | `string`   | The `job_id` supplied in the command body. |
+| `profiling.job.id`  | `string`   | The `job_id` supplied in the command body.                               |
 
 The same `source.event.time` value MUST be used for every thread in a single
 thread dump. The same `profiling.job.id` value MUST be used for every thread and
@@ -518,11 +518,11 @@ every thread dump produced by one command.
 The following labels are added when the corresponding lock information is
 available:
 
-| Label                | pprof type | Cardinality  | Value |
-|----------------------|------------|--------------|-------|
-| `lock.waiting_on`    | `string`   | zero or one  | Object on which the thread is blocked, in `<class>@<identity_hash>` form. |
-| `lock.owner_thread`  | `string`   | zero or one  | Name of the thread that owns `lock.waiting_on`. |
-| `lock.held.<n>`      | `string`   | zero or more | One indexed label per held monitor or ownable synchronizer, in `<class>@<identity_hash>` form. |
+| Label               | pprof type | Cardinality  | Value                                                                                          |
+|---------------------|------------|--------------|------------------------------------------------------------------------------------------------|
+| `lock.waiting_on`   | `string`   | zero or one  | Object on which the thread is blocked, in `<class>@<identity_hash>` form.                      |
+| `lock.owner_thread` | `string`   | zero or one  | Name of the thread that owns `lock.waiting_on`.                                                |
+| `lock.held.<n>`     | `string`   | zero or more | One indexed label per held monitor or ownable synchronizer, in `<class>@<identity_hash>` form. |
 
 The `<n>` suffix in `lock.held.<n>` MUST be a contiguous, zero-based integer.
 Locked monitors MUST be listed first in the order returned by the runtime,
