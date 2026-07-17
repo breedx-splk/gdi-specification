@@ -347,7 +347,7 @@ configuration option MAY be provided:
 | `SPLUNK_OPAMP_EXPERIMENTAL_REMOTE_CONTROL` | false   | Set to `true` to accept experimental remote-control commands. |
 
 The equivalent Java system property is
-`splunk.opamp.experimental_remote_control`.
+`splunk.opamp.experimental.remote.control`.
 
 When using declarative configuration, `experimental_control` enables the
 feature:
