@@ -442,12 +442,12 @@ thread.dump
 <interval_millis>
 ```
 
-| Line | Name            | Type                           | Default | Description                                 |
-|------|-----------------|--------------------------------|---------|---------------------------------------------|
-| 1    | command         | string                         | none    | MUST be the literal `thread.dump`.          |
-| 2    | job_id          | string                         | none    | Opaque identifier for the dump request.     |
-| 3    | count           | positive 32-bit signed integer | 1       | Number of thread dumps to collect.          |
-| 4    | interval_millis | positive 32-bit signed integer | 1000    | Delay in milliseconds between thread dumps. |
+| Line | Name            | Type                           | Default | Maximum            | Description                                 |
+|------|-----------------|--------------------------------|---------|--------------------|---------------------------------------------|
+| 1    | command         | string                         | none    | none               | MUST be the literal `thread.dump`.          |
+| 2    | job_id          | string                         | none    | none               | Opaque identifier for the dump request.     |
+| 3    | count           | positive 32-bit signed integer | 1       | 100                | Number of thread dumps to collect.          |
+| 4    | interval_millis | positive 32-bit signed integer | 1000    | 300000 (5 minutes) | Delay in milliseconds between thread dumps. |
 
 The `job_id` line is REQUIRED and MUST NOT be empty. The `count` and
 `interval_millis` lines MAY be omitted. To specify `interval_millis`, `count`
