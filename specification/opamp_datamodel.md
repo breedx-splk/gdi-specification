@@ -432,8 +432,8 @@ ignored.
 
 ### `thread.dump` Command
 
-The `thread.dump` command, currently supported by the Java agent, requests one
-or more thread dumps of the agent process. Its body has the following format:
+The `thread.dump` command, requests one or more thread dumps of the agent
+process. Its body has the following format:
 
 ```text
 thread.dump
