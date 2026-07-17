@@ -357,7 +357,8 @@ distribution:
   splunk:
     opamp/development:
       endpoint: http://some.opamp-host.com:3420/v1/opamp
-      experimental_control: true
+      features:
+        experimental_control:
 ```
 
 OpAMP must be enabled in the agent for this feature to work.
