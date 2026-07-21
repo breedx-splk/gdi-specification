@@ -336,36 +336,10 @@ Agents MUST NOT perform any local persistence of remote configuration values.
 Some use cases require an OpAMP server to send an instruction, or command, to a
 running agent. The standard `ServerToAgentCommand` message currently supports
 only agent restarts. Agents MAY support additional commands using the
-experimental transports described in this section. This feature is opt-in and
-MUST NOT be enabled by default.
+experimental transports described in this section.
 
-When using environment-variable based agent configuration, the following
-configuration option MAY be provided:
-
-| Name                                       | Default | Description                                                   |
-|--------------------------------------------|---------|---------------------------------------------------------------|
-| `SPLUNK_OPAMP_EXPERIMENTAL_REMOTE_CONTROL` | false   | Set to `true` to accept experimental remote-control commands. |
-
-The equivalent Java system property is
-`splunk.opamp.experimental.remote.control`.
-
-When using declarative configuration, `experimental_control` enables the
-feature:
-
-```yaml
-distribution:
-  splunk:
-    opamp/development:
-      endpoint: http://some.opamp-host.com:3420/v1/opamp
-      features:
-        experimental_control:
-```
-
-OpAMP must be enabled in the agent for this feature to work.
-
-This feature is independent of the call graph profiler (also known as the
-snapshot profiler) and does not require `SPLUNK_SNAPSHOT_PROFILER_ENABLED` to
-be set.
+See [OpAMP configuration](configuration.md#experimental-remote-control) for
+the environment-variable, Java system property, and declarative YAML options.
 
 ### Command Transport
 
