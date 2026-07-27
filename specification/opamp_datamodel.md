@@ -348,24 +348,16 @@ Agents MUST NOT perform any local persistence of remote configuration values.
 Some use cases require an OpAMP server to send an instruction, or command, to a
 running agent. The standard `ServerToAgentCommand` message currently supports
 only agent restarts. Agents MAY support additional commands using the
-experimental transports described in this section.
+experimental transport described in this section.
 
 See [OpAMP configuration](configuration.md#experimental-remote-control) for
 the environment-variable, Java system property, and declarative YAML options.
 
 ### Command Transport
 
-Commands MAY be carried in an OpAMP `CustomMessage` or, for OpAMP clients that
-do not yet expose custom-message support, in an `AgentRemoteConfig` message.
-Both transports carry the same command body: UTF-8 encoded,
-newline-separated text. An agent MUST parse and execute the body identically
-regardless of which transport carries it.
-
-#### Custom Message Transport
-
-Servers SHOULD use an OpAMP
+Commands MUST be carried in an OpAMP
 [`CustomMessage`](https://opentelemetry.io/docs/specs/opamp/#custom-messages)
-when the client supports it. The server MUST set the fields as follows:
+with the fields set as follows:
 
 | Field        | Value                                      |
 |--------------|--------------------------------------------|
@@ -387,27 +379,6 @@ thread.dump
 3
 1000
 ```
-
-#### Remote Configuration Compatibility Transport
-
-**Status**: [Deprecated](../README.md#versioning-and-status-of-the-specification)
-
-This transport remains supported as a compatibility
-mechanism for OpAMP clients, including the current Java client, that do not yet
-expose custom-message support. A server SHOULD NOT use this transport when the
-agent advertises the `com.splunk.opamp.experimental_command/v1` custom
-capability.
-
-The server MAY place a command in the
-[`AgentRemoteConfig.AgentConfigMap`](https://opentelemetry.io/docs/specs/opamp/#agentremoteconfig-message)
-using the reserved config filename `COMMAND_HACKS`. The value MUST be an
-`AgentConfigFile` whose body is UTF-8 encoded. Its `content_type` SHOULD be
-`text/plain; charset=utf-8`.
-
-When `COMMAND_HACKS` is present, the agent MUST interpret its body as a command
-rather than ordinary remote configuration. A server MAY send a command and
-remote configuration together in the same
-`AgentConfigMap`.
 
 #### Command Body
 

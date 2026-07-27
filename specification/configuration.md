@@ -395,7 +395,7 @@ independent of the call graph profiler (also known as the snapshot profiler)
 and does not require `SPLUNK_SNAPSHOT_PROFILER_ENABLED` to be set.
 
 See the [OpAMP remote-control data model](opamp_datamodel.md#remote-control) for
-the command transports and behavior.
+the command transport and behavior.
 
 ### Serverless
 
